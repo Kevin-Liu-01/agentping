@@ -16,15 +16,20 @@
     "slack": {
       "type": "webhook",
       "url": "https://hooks.slack.com/services/XXX/YYY/ZZZ",
-      "_comment": "One-way only (notify). Default body is {\"text\": \"<title>: <message>\"}, which Slack/Discord-compatible incoming webhooks accept.",
-      "body": "{{\"text\": \"{title}: {message}\"}}",
+      "_comment": "One-way (notify only). Slack incoming webhooks want a 'text' field, which is exactly the default body, so no 'body' template is needed."
+    },
+
+    "discord": {
+      "type": "webhook",
+      "url": "https://discord.com/api/webhooks/XXXXX/YYYYY",
       "content_type": "application/json",
-      "headers": {}
+      "body": "{{\"content\": \"{title}: {message}\"}}",
+      "_comment": "One-way (notify only). Discord webhooks want a 'content' field, not 'text', so this body template is required. Placeholders: {title} {message}."
     },
 
     "say": {
       "type": "command",
-      "_comment": "Escape hatch: run any program. Placeholders: {message} {title} {default} {options}. notify uses exit code; ask reads stdout; confirm uses exit 0=approve / nonzero=deny.",
+      "_comment": "Escape hatch: run any program. Placeholders: {message} {title} {default} {options}. notify uses the exit code; ask reads stdout; confirm treats exit 0 as approve and nonzero as deny.",
       "notify": ["say", "{title}. {message}"]
     },
 

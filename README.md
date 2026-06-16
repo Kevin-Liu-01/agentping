@@ -129,6 +129,7 @@ To add more destinations, create `~/.config/agent-notify/config.json`
     "system": { "type": "system" },
     "phone":  { "type": "ntfy", "topic": "my-unguessable-topic-x9f2" },
     "slack":  { "type": "webhook", "url": "https://hooks.slack.com/services/..." },
+    "discord":{ "type": "webhook", "url": "https://discord.com/api/webhooks/...", "body": "{{\"content\": \"{title}: {message}\"}}" },
     "say":    { "type": "command", "notify": ["say", "{title}. {message}"] }
   }
 }
@@ -143,7 +144,7 @@ Then target one explicitly: `agent-notify ask "..." --channel phone`, or set it 
 |------|:------:|:----------------------:|-------|
 | `system`  | yes | yes | native desktop; the default |
 | `ntfy`    | yes | yes (round-trip) | phone push; you reply from the [ntfy](https://ntfy.sh) app and the agent reads it back |
-| `webhook` | yes | no | one-way POST; default body `{"text":"<title>: <message>"}` (Slack/Discord-compatible) |
+| `webhook` | yes | no | one-way POST; default body `{"text": ...}` suits Slack. Discord needs a `content` body template (see [`config.example.json`](./config.example.json)) |
 | `command` | yes | yes | run any program; placeholders `{message} {title} {default} {options}` |
 
 The **`ntfy`** channel is what makes "the user is away" work: the agent publishes
