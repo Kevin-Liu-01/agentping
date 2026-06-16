@@ -1,0 +1,45 @@
+{
+  "name": "agent-notify-cli",
+  "version": "1.0.0",
+  "description": "Let any AI agent tap you on the shoulder: notify, ask, confirm, choose. A single-file CLI that pings a human through their own notification settings (desktop, iMessage, ntfy, Slack/Discord) and blocks for the reply. Works from Cursor, Claude Code, Codex, or any shell.",
+  "bin": {
+    "agent-notify": "bin/agent-notify.js"
+  },
+  "files": [
+    "agent-notify",
+    "bin/",
+    "assets/logo.svg",
+    "SKILL.md",
+    "config.example.json"
+  ],
+  "engines": {
+    "node": ">=14"
+  },
+  "keywords": [
+    "agent",
+    "ai",
+    "notification",
+    "notify",
+    "cli",
+    "imessage",
+    "ntfy",
+    "slack",
+    "discord",
+    "macos",
+    "claude",
+    "cursor",
+    "codex",
+    "approval",
+    "human-in-the-loop"
+  ],
+  "homepage": "https://github.com/Kevin-Liu-01/Agent-Notify#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kevin-Liu-01/Agent-Notify.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Kevin-Liu-01/Agent-Notify/issues"
+  },
+  "license": "MIT",
+  "author": "Kevin Liu (Kevin-Liu-01)"
+}

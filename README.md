@@ -45,6 +45,18 @@ idea: the *notification linkup* lives in your config, not in the agent.
 
 ## Install
 
+**npm** (one command; gives you the `agent-notify` command):
+
+```bash
+npm install -g agent-notify-cli
+```
+
+agent-notify is one Python file, and the npm package is a thin launcher around
+it, so you need **Python 3.8+** on your `PATH` (point `AGENT_NOTIFY_PYTHON` at a
+specific interpreter if `python3`/`python` isn't it). No Python packages to install.
+
+**From source:**
+
 ```bash
 git clone https://github.com/Kevin-Liu-01/Agent-Notify.git
 cd Agent-Notify
