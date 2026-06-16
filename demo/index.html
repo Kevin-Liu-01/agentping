@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1920px; height: 1080px; overflow: hidden;
+        background: #030305;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+        color: #f5f5f7;
+        -webkit-font-smoothing: antialiased;
+      }
+      .mono { font-family: "SF Mono", "JetBrains Mono", ui-monospace, monospace; }
+
+      #viewport { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      #root { width: 1920px; height: 1080px; overflow: hidden; }
+      #camera {
+        position: absolute; inset: 0;
+        transform-origin: 50% 50%;
+      }
+
+      .wallpaper {
+        position: absolute; inset: 0;
+        background:
+          radial-gradient(ellipse 1000px 800px at 12% 18%, rgba(13, 148, 136, 0.42), transparent 68%),
+          radial-gradient(ellipse 900px 700px at 88% 78%, rgba(99, 102, 241, 0.32), transparent 62%),
+          radial-gradient(ellipse 500px 400px at 55% 8%, rgba(244, 114, 182, 0.12), transparent 55%),
+          linear-gradient(160deg, #08080e 0%, #101018 45%, #060609 100%);
+      }
+      .wallpaper::before {
+        content: ""; position: absolute; inset: 0;
+        background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+        background-size: 24px 24px; opacity: 0.35;
+      }
+
+      /* Intro */
+      .intro {
+        position: absolute; inset: 0; z-index: 20;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px;
+      }
+      .intro-logo {
+        width: 132px; height: 132px; border-radius: 30px;
+        box-shadow: 0 28px 90px rgba(13,148,136,0.5), 0 0 0 1px rgba(255,255,255,0.1);
+      }
+      .intro h1 { font-size: 68px; font-weight: 700; letter-spacing: -0.035em; }
+      .intro p { font-size: 26px; color: rgba(255,255,255,0.5); }
+      .intro-tag {
+        margin-top: 4px; padding: 9px 20px; border-radius: 999px;
+        background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+        font-size: 16px; color: rgba(255,255,255,0.6); letter-spacing: 0.02em;
+      }
+
+      /* Cursor IDE */
+      .ide-shell {
+        position: absolute; left: 64px; top: 56px;
+        width: 1220px; height: 880px; border-radius: 16px; overflow: hidden;
+        background: rgba(18, 18, 22, 0.78);
+        backdrop-filter: blur(48px) saturate(170%);
+        border: 1px solid rgba(255,255,255,0.11);
+        box-shadow: 0 48px 120px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07);
+        display: flex; flex-direction: column; z-index: 5;
+      }
+      .titlebar {
+        height: 48px; display: flex; align-items: center; padding: 0 18px; gap: 9px;
+        background: rgba(0,0,0,0.35); border-bottom: 1px solid rgba(255,255,255,0.07);
+      }
+      .dot { width: 13px; height: 13px; border-radius: 50%; box-shadow: inset 0 -1px 2px rgba(0,0,0,0.2); }
+      .dot-r { background: #ff5f57; } .dot-y { background: #febc2e; } .dot-g { background: #28c840; }
+      .titlebar span {
+        flex: 1; text-align: center; font-size: 13px; font-weight: 500;
+        color: rgba(255,255,255,0.55); margin-right: 48px;
+      }
+      .ide-body { flex: 1; display: flex; min-height: 0; }
+      .sidebar {
+        width: 56px; background: rgba(0,0,0,0.28);
+        border-right: 1px solid rgba(255,255,255,0.06);
+        display: flex; flex-direction: column; align-items: center; padding-top: 16px; gap: 16px;
+      }
+      .sidebar-icon {
+        width: 32px; height: 32px; border-radius: 8px;
+        background: rgba(255,255,255,0.06); position: relative;
+      }
+      .sidebar-icon.active {
+        background: rgba(13,148,136,0.28);
+        box-shadow: 0 0 0 1px rgba(13,148,136,0.55), 0 0 20px rgba(13,148,136,0.15);
+      }
+      .sidebar-icon.active::after {
+        content: ""; position: absolute; left: -12px; top: 6px; bottom: 6px; width: 3px;
+        border-radius: 2px; background: #14b8a6;
+      }
+      .editor-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+      .tabs {
+        height: 38px; display: flex; align-items: flex-end; padding: 0 14px; gap: 4px;
+        background: rgba(0,0,0,0.22);
+      }
+      .tab {
+        padding: 9px 18px; font-size: 12px; font-weight: 500;
+        color: rgba(255,255,255,0.42); border-radius: 8px 8px 0 0;
+      }
+      .tab.active {
+        background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.92);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+      }
+      .terminal {
+        flex: 1; padding: 22px 26px; font-size: 14.5px; line-height: 1.7;
+        color: rgba(255,255,255,0.78); background: rgba(0,0,0,0.28);
+      }
+      .terminal .prompt { color: #2dd4bf; font-weight: 600; }
+      .terminal .cmd { color: #a5f3fc; }
+      .terminal .dim { color: rgba(255,255,255,0.38); }
+      .terminal .ok { color: #4ade80; }
+      .term-hidden { opacity: 0; }
+      .term-cursor {
+        display: inline-block; width: 8px; height: 16px; margin-left: 2px;
+        background: rgba(45,212,191,0.9); vertical-align: text-bottom; opacity: 0;
+      }
+      #ide { opacity: 0; }
+
+      .agent-panel {
+        width: 440px; border-left: 1px solid rgba(255,255,255,0.07);
+        background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%);
+        backdrop-filter: blur(32px); display: flex; flex-direction: column;
+      }
+      .agent-header {
+        padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.07);
+        display: flex; align-items: center; gap: 12px;
+        font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.75);
+      }
+      .agent-header .spark {
+        width: 24px; height: 24px; border-radius: 7px;
+        background: linear-gradient(135deg, #0d9488 0%, #6366f1 100%);
+        box-shadow: 0 4px 16px rgba(13,148,136,0.35);
+      }
+      .agent-messages { flex: 1; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
+      .msg { font-size: 14px; line-height: 1.55; opacity: 0; }
+      .msg.agent {
+        padding: 13px 15px; border-radius: 14px;
+        background: rgba(255,255,255,0.055); border: 1px solid rgba(255,255,255,0.07);
+        color: rgba(255,255,255,0.86);
+      }
+      .msg.user {
+        align-self: flex-end; max-width: 82%; padding: 11px 15px; border-radius: 14px;
+        background: linear-gradient(135deg, rgba(13,148,136,0.28), rgba(13,148,136,0.14));
+        border: 1px solid rgba(45,212,191,0.35); color: #ccfbf1;
+        transform: translateX(16px);
+      }
+      .msg code {
+        font-size: 12px; padding: 2px 7px; border-radius: 5px;
+        background: rgba(0,0,0,0.35); color: #5eead4;
+      }
+      .agent-input {
+        margin: 14px; padding: 13px 16px; border-radius: 12px;
+        background: rgba(0,0,0,0.32); border: 1px solid rgba(255,255,255,0.09);
+        font-size: 13px; color: rgba(255,255,255,0.32);
+      }
+      .statusbar {
+        height: 26px; display: flex; align-items: center; padding: 0 14px; gap: 16px;
+        font-size: 11px; color: rgba(255,255,255,0.38);
+        background: rgba(13,148,136,0.12); border-top: 1px solid rgba(255,255,255,0.05);
+      }
+
+      /* Notifications */
+      .notif-stack {
+        position: absolute; top: 20px; right: 20px;
+        width: 420px; height: 200px; z-index: 30; overflow: visible;
+      }
+      .notif {
+        position: absolute; top: 0; left: 0; width: 100%;
+        display: flex; gap: 14px; padding: 16px 18px; border-radius: 20px;
+        background: rgba(252, 252, 254, 0.78);
+        backdrop-filter: blur(48px) saturate(190%);
+        box-shadow:
+          0 16px 48px rgba(0,0,0,0.14),
+          0 0 0 0.5px rgba(255,255,255,0.65),
+          inset 0 1px 0 rgba(255,255,255,0.95);
+        color: #1d1d1f; opacity: 0; visibility: hidden;
+      }
+      .notif-icon {
+        width: 48px; height: 48px; border-radius: 11px; flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(13,148,136,0.25);
+      }
+      .notif-body { flex: 1; min-width: 0; }
+      .notif-head {
+        display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px;
+      }
+      .notif-app {
+        font-size: 11px; font-weight: 650; letter-spacing: 0.03em;
+        color: rgba(0,0,0,0.42); text-transform: uppercase;
+      }
+      .notif-time { font-size: 11px; color: rgba(0,0,0,0.35); }
+      .notif-title { font-size: 15px; font-weight: 650; line-height: 1.28; margin-bottom: 3px; }
+      .notif-sub { font-size: 13px; color: rgba(0,0,0,0.52); line-height: 1.35; }
+      .notif-field {
+        margin-top: 10px; padding: 10px 12px; border-radius: 10px;
+        background: rgba(255,255,255,0.85); border: 1.5px solid rgba(0,122,255,0.45);
+        box-shadow: 0 0 0 3px rgba(0,122,255,0.12);
+        font-size: 14px; min-height: 38px; display: flex; align-items: center;
+      }
+      .notif-field .caret {
+        display: inline-block; width: 2px; height: 16px; margin-left: 1px;
+        background: #007aff; opacity: 1;
+      }
+      .notif-actions { display: flex; gap: 8px; margin-top: 12px; }
+      .notif-btn {
+        flex: 1; padding: 9px 12px; border-radius: 10px;
+        font-size: 13px; font-weight: 600; text-align: center;
+        background: rgba(0,0,0,0.05); color: #007aff;
+        border: 1px solid rgba(0,0,0,0.06);
+        transition: transform 0.08s, background 0.08s;
+      }
+      .notif-btn.primary { background: #007aff; color: #fff; border-color: transparent; }
+      .notif-btn.hover { background: rgba(0,122,255,0.12); }
+      .notif-btn.primary.hover { background: #0066d6; }
+      .notif-btn.pressed { transform: scale(0.96); }
+      .notif-btn.selected {
+        background: rgba(13,148,136,0.14); color: #0f766e;
+        border-color: rgba(13,148,136,0.45);
+        box-shadow: inset 0 0 0 1px rgba(13,148,136,0.25);
+      }
+
+      /* Pointer */
+      #pointer {
+        position: absolute; top: 0; left: 0; width: 28px; height: 28px;
+        z-index: 200; pointer-events: none; opacity: 0;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35));
+      }
+      #pointer .ring {
+        position: absolute; left: 50%; top: 50%; width: 36px; height: 36px;
+        margin: -18px 0 0 -18px; border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.85);
+        opacity: 0; transform: scale(0.4);
+      }
+
+      /* Outro */
+      .outro {
+        position: absolute; inset: 0; z-index: 25;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px;
+        background: rgba(4,4,8,0.9); backdrop-filter: blur(24px); opacity: 0;
+      }
+      .outro h2 { font-size: 40px; font-weight: 700; letter-spacing: -0.025em; opacity: 0; transform: translateY(20px); }
+      .verbs { display: grid; grid-template-columns: repeat(4,1fr); gap: 18px; width: 1120px; }
+      .verb-card {
+        padding: 26px 22px; border-radius: 18px; text-align: center; opacity: 0; transform: translateY(16px);
+        background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+      }
+      .verb-card h3 { font-size: 21px; font-weight: 650; color: #2dd4bf; margin-bottom: 7px; }
+      .verb-card p { font-size: 14px; color: rgba(255,255,255,0.48); line-height: 1.45; }
+      .outro-url { font-size: 18px; color: rgba(255,255,255,0.42); opacity: 0; font-family: "SF Mono", ui-monospace, monospace; }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="46"
+      data-width="1920"
+      data-height="1080"
+    >
+      <div id="viewport">
+        <div id="camera">
+          <div class="wallpaper"></div>
+
+          <div class="intro clip" id="intro" data-start="0" data-duration="5" data-track-index="1">
+            <svg class="intro-logo" viewBox="0 0 256 256"><rect width="256" height="256" rx="56" fill="#0D9488"/><line x1="128" y1="70" x2="128" y2="42" stroke="#FFF" stroke-width="6" stroke-linecap="round"/><circle cx="128" cy="35" r="8" fill="#FFF"/><path d="M128 70 C108 70 92 86 92 114 C92 138 86 154 74 164 C70 167 72 174 79 174 L177 174 C184 174 186 167 182 164 C170 154 164 138 164 114 C164 86 148 70 128 70 Z" fill="#FFF"/><circle cx="128" cy="194" r="11" fill="#FFF"/><circle cx="114" cy="120" r="7" fill="#0D9488"/><circle cx="142" cy="120" r="7" fill="#0D9488"/><path d="M113 140 Q128 154 143 140" fill="none" stroke="#0D9488" stroke-width="6" stroke-linecap="round"/></svg>
+            <h1>Agent-Notify</h1>
+            <p>Let any AI agent tap you on the shoulder.</p>
+            <div class="intro-tag">notify · ask · confirm · choose</div>
+          </div>
+
+          <div class="ide-shell clip" id="ide" data-start="4" data-duration="38" data-track-index="2">
+            <div class="titlebar">
+              <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+              <span>Agent-Notify — Cursor</span>
+            </div>
+            <div class="ide-body">
+              <div class="sidebar">
+                <div class="sidebar-icon active"></div>
+                <div class="sidebar-icon"></div>
+                <div class="sidebar-icon"></div>
+              </div>
+              <div class="editor-pane">
+                <div class="tabs">
+                  <div class="tab active">terminal</div>
+                  <div class="tab">agent-notify</div>
+                </div>
+                <div class="terminal mono" id="terminal">
+                  <div><span class="prompt">agent ›</span> <span class="dim">running migration on preview...</span></div>
+                  <div id="line-notify" class="term-hidden"><span class="prompt">$</span> <span class="cmd" id="cmd-notify"></span><span class="term-cursor" id="cur-notify"></span></div>
+                  <div id="line-notify-out" class="term-hidden ok">→ sent via banner (logo)</div>
+                  <div id="line-ask" class="term-hidden"><span class="prompt">$</span> <span class="cmd" id="cmd-ask"></span></div>
+                  <div id="line-ask-out" class="term-hidden ok">→ reply: dev</div>
+                  <div id="line-choose" class="term-hidden"><span class="prompt">$</span> <span class="cmd" id="cmd-choose"></span></div>
+                  <div id="line-choose-out" class="term-hidden ok">→ chose ship (exit 1)</div>
+                  <div id="line-confirm" class="term-hidden"><span class="prompt">$</span> <span class="cmd" id="cmd-confirm"></span></div>
+                  <div id="line-confirm-out" class="term-hidden ok">→ exit 0 (approved)</div>
+                </div>
+                <div class="statusbar"><span>main</span><span>agent-notify</span><span style="margin-left:auto">Python 3.12</span></div>
+              </div>
+              <div class="agent-panel">
+                <div class="agent-header"><div class="spark"></div>Agent</div>
+                <div class="agent-messages">
+                  <div class="msg agent" id="chat-1">Migration finished on preview. I'll ping you before anything risky.</div>
+                  <div class="msg agent" id="chat-2">Need your branch pick and prod sign-off. Replying from the banner via <code>agent-notify</code>.</div>
+                  <div class="msg user" id="chat-3">dev</div>
+                  <div class="msg user" id="chat-4">ship</div>
+                  <div class="msg user" id="chat-5">Approved</div>
+                </div>
+                <div class="agent-input">Ask Agent anything...</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="notif-stack" data-layout-allow-overflow="true">
+            <div class="notif clip" id="n-notify" data-start="10" data-duration="4" data-track-index="10" data-layout-allow-overflow="true">
+              <svg class="notif-icon" viewBox="0 0 256 256"><rect width="256" height="256" rx="56" fill="#0D9488"/><line x1="128" y1="70" x2="128" y2="42" stroke="#FFF" stroke-width="6" stroke-linecap="round"/><circle cx="128" cy="35" r="8" fill="#FFF"/><path d="M128 70 C108 70 92 86 92 114 C92 138 86 154 74 164 C70 167 72 174 79 174 L177 174 C184 174 186 167 182 164 C170 154 164 138 164 114 C164 86 148 70 128 70 Z" fill="#FFF"/><circle cx="128" cy="194" r="11" fill="#FFF"/><circle cx="114" cy="120" r="7" fill="#0D9488"/><circle cx="142" cy="120" r="7" fill="#0D9488"/><path d="M113 140 Q128 154 143 140" fill="none" stroke="#0D9488" stroke-width="6" stroke-linecap="round"/></svg>
+              <div class="notif-body">
+                <div class="notif-head"><span class="notif-app">Agent-Notify</span><span class="notif-time">now</span></div>
+                <div class="notif-title">Migration complete on preview</div>
+                <div class="notif-sub">Agent continues. No reply needed.</div>
+              </div>
+            </div>
+
+            <div class="notif clip" id="n-ask" data-start="16" data-duration="8" data-track-index="11" data-layout-allow-overflow="true">
+              <svg class="notif-icon" viewBox="0 0 256 256"><rect width="256" height="256" rx="56" fill="#0D9488"/><line x1="128" y1="70" x2="128" y2="42" stroke="#FFF" stroke-width="6" stroke-linecap="round"/><circle cx="128" cy="35" r="8" fill="#FFF"/><path d="M128 70 C108 70 92 86 92 114 C92 138 86 154 74 164 C70 167 72 174 79 174 L177 174 C184 174 186 167 182 164 C170 154 164 138 164 114 C164 86 148 70 128 70 Z" fill="#FFF"/><circle cx="128" cy="194" r="11" fill="#FFF"/><circle cx="114" cy="120" r="7" fill="#0D9488"/><circle cx="142" cy="120" r="7" fill="#0D9488"/><path d="M113 140 Q128 154 143 140" fill="none" stroke="#0D9488" stroke-width="6" stroke-linecap="round"/></svg>
+              <div class="notif-body">
+                <div class="notif-head"><span class="notif-app">Agent-Notify · ask</span><span class="notif-time">now</span></div>
+                <div class="notif-title">Which branch should I merge?</div>
+                <div class="notif-field"><span id="ask-text"></span><span class="caret" id="ask-caret"></span></div>
+                <div class="notif-actions"><div class="notif-btn primary" id="btn-reply">Reply</div></div>
+              </div>
+            </div>
+
+            <div class="notif clip" id="n-choose" data-start="25" data-duration="7" data-track-index="12" data-layout-allow-overflow="true">
+              <svg class="notif-icon" viewBox="0 0 256 256"><rect width="256" height="256" rx="56" fill="#0D9488"/><line x1="128" y1="70" x2="128" y2="42" stroke="#FFF" stroke-width="6" stroke-linecap="round"/><circle cx="128" cy="35" r="8" fill="#FFF"/><path d="M128 70 C108 70 92 86 92 114 C92 138 86 154 74 164 C70 167 72 174 79 174 L177 174 C184 174 186 167 182 164 C170 154 164 138 164 114 C164 86 148 70 128 70 Z" fill="#FFF"/><circle cx="128" cy="194" r="11" fill="#FFF"/><circle cx="114" cy="120" r="7" fill="#0D9488"/><circle cx="142" cy="120" r="7" fill="#0D9488"/><path d="M113 140 Q128 154 143 140" fill="none" stroke="#0D9488" stroke-width="6" stroke-linecap="round"/></svg>
+              <div class="notif-body">
+                <div class="notif-head"><span class="notif-app">Agent-Notify · choose</span><span class="notif-time">now</span></div>
+                <div class="notif-title">Pick next step</div>
+                <div class="notif-actions">
+                  <div class="notif-btn" id="btn-hold">hold</div>
+                  <div class="notif-btn" id="btn-ship">ship</div>
+                  <div class="notif-btn" id="btn-rollback">rollback</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="notif clip" id="n-confirm" data-start="33" data-duration="7" data-track-index="13" data-layout-allow-overflow="true">
+              <svg class="notif-icon" viewBox="0 0 256 256"><rect width="256" height="256" rx="56" fill="#0D9488"/><line x1="128" y1="70" x2="128" y2="42" stroke="#FFF" stroke-width="6" stroke-linecap="round"/><circle cx="128" cy="35" r="8" fill="#FFF"/><path d="M128 70 C108 70 92 86 92 114 C92 138 86 154 74 164 C70 167 72 174 79 174 L177 174 C184 174 186 167 182 164 C170 154 164 138 164 114 C164 86 148 70 128 70 Z" fill="#FFF"/><circle cx="128" cy="194" r="11" fill="#FFF"/><circle cx="114" cy="120" r="7" fill="#0D9488"/><circle cx="142" cy="120" r="7" fill="#0D9488"/><path d="M113 140 Q128 154 143 140" fill="none" stroke="#0D9488" stroke-width="6" stroke-linecap="round"/></svg>
+              <div class="notif-body">
+                <div class="notif-head"><span class="notif-app">Agent-Notify · confirm</span><span class="notif-time">now</span></div>
+                <div class="notif-title">Run destructive migration on prod?</div>
+                <div class="notif-sub">Agent blocked until you decide.</div>
+                <div class="notif-actions">
+                  <div class="notif-btn" id="btn-deny">Deny</div>
+                  <div class="notif-btn primary" id="btn-approve">Approve</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="outro clip" id="outro" data-start="41" data-duration="5" data-track-index="20">
+            <h2>Four verbs. One CLI.</h2>
+            <div class="verbs">
+              <div class="verb-card"><h3>notify</h3><p>One-way ping. Agent keeps going.</p></div>
+              <div class="verb-card"><h3>ask</h3><p>Free-text answer. Blocks until reply.</p></div>
+              <div class="verb-card"><h3>choose</h3><p>Pick from options. Exit code = index.</p></div>
+              <div class="verb-card"><h3>confirm</h3><p>Approve or deny. Exit 0 or 20.</p></div>
+            </div>
+            <div class="outro-url">github.com/Kevin-Liu-01/Agent-Notify</div>
+          </div>
+        </div>
+
+        <div id="pointer">
+          <svg width="28" height="28" viewBox="0 0 28 28"><path d="M4 3 L4 22 L10 16 L14 24 L17 22 L13 14 L20 13 Z" fill="#fff" stroke="#111" stroke-width="1.2" stroke-linejoin="round"/></svg>
+          <div class="ring"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const BEZIER_IN = "power4.inOut";
+      const BEZIER_OUT = "expo.inOut";
+      const CURVE = "sine.inOut";
+
+      const CMD_NOTIFY = 'agent-notify notify "Migration complete on preview"';
+      const CMD_ASK = 'agent-notify ask "Which branch should I merge?"';
+      const CMD_CHOOSE = 'agent-notify choose "Pick next step" --options "ship,hold,rollback"';
+      const CMD_CONFIRM = 'agent-notify confirm "Run destructive migration on prod?"';
+
+      function typeInto(el, text, start, speed = 0.045) {
+        tl.call(() => { el.textContent = ""; }, null, start);
+        for (let i = 0; i < text.length; i++) {
+          const slice = text.slice(0, i + 1);
+          tl.call(() => { el.textContent = slice; }, null, start + (i + 1) * speed);
+        }
+        return start + text.length * speed + 0.1;
+      }
+
+      function blinkCaret(id, start, end) {
+        tl.to(id, { opacity: 1, duration: 0.01 }, start);
+        tl.to(id, { opacity: 0, duration: 0.01, repeat: Math.floor((end - start) / 0.5), yoyo: true }, start);
+      }
+
+      function movePointer(x, y, start, dur = 0.42) {
+        tl.to("#pointer", { opacity: 1, x, y, duration: dur, ease: CURVE }, start);
+      }
+
+      function clickPointer(start, btnSel) {
+        tl.to("#pointer .ring", { opacity: 0.9, scale: 1.2, duration: 0.22, ease: "power2.out" }, start);
+        tl.to("#pointer .ring", { opacity: 0, scale: 1.6, duration: 0.28 }, start + 0.22);
+        if (btnSel) {
+          tl.to(btnSel, { scale: 0.94, duration: 0.07, ease: "power2.in" }, start);
+          tl.to(btnSel, { scale: 1, duration: 0.14, ease: "back.out(2)" }, start + 0.07);
+        }
+      }
+
+      function hoverBtn(btnSel, start) {
+        tl.call(() => { document.querySelector(btnSel).classList.add("hover"); }, null, start);
+      }
+
+      function slideNotif(id, t) {
+        tl.set(id, { visibility: "visible" }, t);
+        tl.fromTo(id, { opacity: 0, x: 440, scale: 0.92 }, { opacity: 1, x: 0, scale: 1, duration: 0.65, ease: BEZIER_OUT }, t);
+      }
+
+      function zoomNotif(t, holdEnd) {
+        tl.to("#camera", { scale: 1.62, x: -420, y: 110, duration: 0.95, ease: BEZIER_IN, transformOrigin: "84% 4%" }, t);
+        tl.to("#camera", { scale: 1, x: 0, y: 0, duration: 0.85, ease: BEZIER_OUT, transformOrigin: "50% 50%" }, holdEnd);
+      }
+
+      function hideNotif(id, t) {
+        tl.to(id, { opacity: 0, y: -24, scale: 0.96, duration: 0.45, ease: "power2.in" }, t);
+        tl.set(id, { visibility: "hidden" }, t + 0.45);
+      }
+
+      // Intro
+      tl.from("#intro .intro-logo", { scale: 0.55, opacity: 0, duration: 0.75, ease: "back.out(1.5)" }, 0.15);
+      tl.from("#intro h1", { y: 28, opacity: 0, duration: 0.55, ease: BEZIER_OUT }, 0.45);
+      tl.from("#intro p", { y: 18, opacity: 0, duration: 0.5 }, 0.65);
+      tl.from("#intro .intro-tag", { y: 12, opacity: 0, duration: 0.45 }, 0.85);
+      tl.to("#intro", { opacity: 0, duration: 0.55, ease: BEZIER_IN }, 3.6);
+
+      // IDE
+      tl.fromTo("#ide", { opacity: 0, y: 36, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.85, ease: BEZIER_OUT }, 4);
+      tl.to("#chat-1", { opacity: 1, duration: 0.4 }, 5.1);
+      tl.to("#chat-2", { opacity: 1, duration: 0.4 }, 6.3);
+
+      // notify verb
+      tl.to("#line-notify", { opacity: 1, duration: 0.01 }, 7.2);
+      tl.to("#cur-notify", { opacity: 1, duration: 0.01 }, 7.2);
+      const afterNotifyCmd = typeInto(document.getElementById("cmd-notify"), CMD_NOTIFY, 7.25, 0.038);
+      tl.to("#cur-notify", { opacity: 0, duration: 0.01 }, afterNotifyCmd);
+      slideNotif("#n-notify", afterNotifyCmd + 0.15);
+      zoomNotif(afterNotifyCmd + 0.5, afterNotifyCmd + 2.4);
+      hideNotif("#n-notify", afterNotifyCmd + 2.5);
+      tl.to("#line-notify-out", { opacity: 1, duration: 0.3 }, afterNotifyCmd + 2.6);
+
+      // ask verb
+      const askStart = afterNotifyCmd + 3.2;
+      tl.to("#line-ask", { opacity: 1, duration: 0.01 }, askStart);
+      typeInto(document.getElementById("cmd-ask"), CMD_ASK, askStart + 0.05, 0.036);
+      slideNotif("#n-ask", askStart + 1.1);
+      zoomNotif(askStart + 1.5, askStart + 5.8);
+
+      movePointer(1680, 168, askStart + 1.8);
+      blinkCaret("#ask-caret", askStart + 2.0, askStart + 3.4);
+      tl.call(() => { document.getElementById("ask-text").textContent = ""; }, null, askStart + 2.0);
+      for (let i = 0; i < 3; i++) {
+        tl.call(() => { document.getElementById("ask-text").textContent = "dev".slice(0, i + 1); }, null, askStart + 2.15 + i * 0.14);
+      }
+      movePointer(1720, 248, askStart + 2.75, 0.35);
+      hoverBtn("#btn-reply", askStart + 2.95);
+      clickPointer(askStart + 3.15, "#btn-reply");
+      hideNotif("#n-ask", askStart + 5.9);
+      tl.to("#line-ask-out", { opacity: 1, duration: 0.25 }, askStart + 6.0);
+      tl.to("#chat-3", { opacity: 1, x: 0, duration: 0.35, ease: BEZIER_OUT }, askStart + 6.1);
+      tl.to("#pointer", { opacity: 0, duration: 0.25 }, askStart + 6.2);
+
+      // choose verb
+      const chooseStart = askStart + 7.0;
+      tl.to("#line-choose", { opacity: 1, duration: 0.01 }, chooseStart);
+      typeInto(document.getElementById("cmd-choose"), CMD_CHOOSE, chooseStart + 0.05, 0.032);
+      slideNotif("#n-choose", chooseStart + 1.3);
+      zoomNotif(chooseStart + 1.7, chooseStart + 5.2);
+
+      movePointer(1590, 268, chooseStart + 2.0);
+      hoverBtn("#btn-hold", chooseStart + 2.15);
+      movePointer(1720, 268, chooseStart + 2.55, 0.38);
+      hoverBtn("#btn-ship", chooseStart + 2.75);
+      tl.call(() => { document.getElementById("btn-ship").classList.add("selected"); }, null, chooseStart + 2.95);
+      clickPointer(chooseStart + 3.05, "#btn-ship");
+      hideNotif("#n-choose", chooseStart + 5.3);
+      tl.to("#line-choose-out", { opacity: 1, duration: 0.25 }, chooseStart + 5.4);
+      tl.to("#chat-4", { opacity: 1, x: 0, duration: 0.35 }, chooseStart + 5.5);
+      tl.to("#pointer", { opacity: 0, duration: 0.2 }, chooseStart + 5.6);
+
+      // confirm verb
+      const confirmStart = chooseStart + 6.2;
+      tl.to("#line-confirm", { opacity: 1, duration: 0.01 }, confirmStart);
+      typeInto(document.getElementById("cmd-confirm"), CMD_CONFIRM, confirmStart + 0.05, 0.034);
+      slideNotif("#n-confirm", confirmStart + 1.2);
+      zoomNotif(confirmStart + 1.6, confirmStart + 5.0);
+
+      movePointer(1710, 278, confirmStart + 2.0);
+      hoverBtn("#btn-approve", confirmStart + 2.2);
+      clickPointer(confirmStart + 2.45, "#btn-approve");
+      hideNotif("#n-confirm", confirmStart + 5.1);
+      tl.to("#line-confirm-out", { opacity: 1, duration: 0.25 }, confirmStart + 5.2);
+      tl.to("#chat-5", { opacity: 1, x: 0, duration: 0.35 }, confirmStart + 5.3);
+      tl.to("#pointer", { opacity: 0, duration: 0.2 }, confirmStart + 5.4);
+
+      // outro
+      tl.to(".notif-stack", { opacity: 0, duration: 0.3 }, 40);
+      tl.to("#ide", { opacity: 0.12, scale: 0.95, duration: 0.7, ease: BEZIER_IN }, 40.2);
+      tl.to("#outro", { opacity: 1, duration: 0.55 }, 41);
+      tl.to("#outro h2", { y: 0, opacity: 1, duration: 0.5, ease: BEZIER_OUT }, 41.3);
+      tl.to("#outro .verb-card", { y: 0, opacity: 1, duration: 0.42, stagger: 0.07, ease: BEZIER_OUT }, 41.55);
+      tl.to("#outro .outro-url", { opacity: 1, duration: 0.45 }, 42.8);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

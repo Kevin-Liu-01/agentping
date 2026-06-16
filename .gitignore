@@ -9,6 +9,9 @@ venv/
 config.json
 /config.local.json
 
+# HyperFrames render output (regenerate with npm run render)
+demo/renders/
+
 # OS / editor cruft
 .DS_Store
 *.swp
