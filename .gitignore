@@ -5,7 +5,7 @@ __pycache__/
 .venv/
 venv/
 
-# Local agent-notify config (may contain tokens/webhook URLs)
+# Local agentping config (may contain tokens/webhook URLs)
 config.json
 /config.local.json
 

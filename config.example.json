@@ -24,7 +24,7 @@
 
     "banner": {
       "type": "banner",
-      "_comment": "Optional (macOS). Run: agent-notify setup-logo. Routes plain notify to a logo banner; ask/confirm/choose stay on system dialogs. Requires: brew install terminal-notifier"
+      "_comment": "Optional (macOS). Run: agentping setup-logo. Routes plain notify to a logo banner; ask/confirm/choose stay on system dialogs. Requires: brew install terminal-notifier"
     },
 
     "phone": {

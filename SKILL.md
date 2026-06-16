@@ -1,9 +1,9 @@
 ---
-name: agent-notify
+name: agentping
 description: Reach the human out-of-band when you are blocked and they may be away from the chat. Sends a real OS notification (or phone push / Slack / custom channel) and can block for the reply: a free-text answer, an approve/deny decision, or a pick-one choice. Use when you need approval before a risky or irreversible action, when you hit an ambiguous decision only the user can settle, when a long task finishes and needs sign-off, or when the user says "ping me", "notify me", "ask me when", "let me know", or "get my approval". Works from any agent that can run a shell command (Cursor, Claude Code, Codex, OpenClaw, Hermes).
 ---
 
-# agent-notify
+# agentping
 
 A single-file CLI that pings the human through their own notification settings
 and, when you ask, waits for their reply. Use it instead of stalling silently or
@@ -12,11 +12,11 @@ guessing when you are blocked and the user might not be watching the chat.
 Invoke it by path so it resolves the same from every agent:
 
 ```bash
-AN="$HOME/.local/bin/agent-notify"   # or wherever install.sh put it
+AN="$HOME/.local/bin/agentping"   # or wherever install.sh put it
 ```
 
 If it is not on `PATH`, call the script directly (e.g. the cloned repo path) or
-`python3 /path/to/agent-notify`.
+`python3 /path/to/agentping`.
 
 ## When to reach for it
 
@@ -89,7 +89,7 @@ report that you are waiting on them.
 ## Channels (the "linkup" layer)
 
 The agent always calls the same verbs; **the user** decides where the ping lands
-via `~/.config/agent-notify/config.json`. Built-in channel types:
+via `~/.config/agentping/config.json`. Built-in channel types:
 
 - `system` (default, zero-config): native desktop notification/dialog.
 - `ntfy`: push to a phone via [ntfy](https://ntfy.sh); the user replies from the ntfy app and you read it back. Best for "user is away from the keyboard."
@@ -116,7 +116,7 @@ When they do, on macOS only:
 ```
 
 That installs `terminal-notifier` if needed, ensures `assets/logo.png` exists,
-writes `~/.config/agent-notify/config.json` so `notify` uses the `banner`
+writes `~/.config/agentping/config.json` so `notify` uses the `banner`
 channel while `ask`/`confirm`/`choose` stay on system dialogs, and sends one
 test banner. The user may need to allow notifications for their terminal app
 once (System Settings -> Notifications).
@@ -124,4 +124,4 @@ once (System Settings -> Notifications).
 To skip the test ping: `"$AN" setup-logo --no-test`.
 
 To revert to osascript-only defaults, set `"default_channel": "system"` in the
-config (or delete `~/.config/agent-notify/config.json`).
+config (or delete `~/.config/agentping/config.json`).

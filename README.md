@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/logo.svg" alt="Agent-Notify" width="150" height="150">
+  <img src="assets/logo.svg" alt="agentping" width="150" height="150">
 </p>
 
-<h1 align="center">agent-notify</h1>
+<h1 align="center">agentping</h1>
 
 <p align="center"><em>Let any AI agent tap you on the shoulder.</em></p>
 
@@ -24,14 +24,14 @@ Hermes**, or your own scripts.
 
 ```bash
 # the agent runs this and blocks until you tap a button on your Mac/Linux/Windows:
-agent-notify confirm "Run the destructive migration on prod?" && ./migrate.sh
+agentping confirm "Run the destructive migration on prod?" && ./migrate.sh
 ```
 
 ---
 
 ## Why
 
-Agents stall silently or, worse, guess. Both are bad. `agent-notify` gives them
+Agents stall silently or, worse, guess. Both are bad. `agentping` gives them
 a reliable out-of-band channel to you:
 
 - **Approval gates.** Pause before anything risky or irreversible.
@@ -45,47 +45,47 @@ idea: the *notification linkup* lives in your config, not in the agent.
 
 ## Install
 
-**npm** (one command; gives you the `agent-notify` command):
+**npm** (one command; gives you the `agentping` command):
 
 ```bash
-npm install -g agent-notify-cli
+npm install -g agentping
 ```
 
-agent-notify is one Python file, and the npm package is a thin launcher around
-it, so you need **Python 3.8+** on your `PATH` (point `AGENT_NOTIFY_PYTHON` at a
+agentping is one Python file, and the npm package is a thin launcher around
+it, so you need **Python 3.8+** on your `PATH` (point `AGENTPING_PYTHON` at a
 specific interpreter if `python3`/`python` isn't it). No Python packages to install.
 
 **From source:**
 
 ```bash
-git clone https://github.com/Kevin-Liu-01/Agent-Notify.git
-cd Agent-Notify
-./install.sh            # symlinks `agent-notify` into ~/.local/bin
+git clone https://github.com/Kevin-Liu-01/agentping.git
+cd agentping
+./install.sh            # symlinks `agentping` into ~/.local/bin
 # or:
 ./install.sh --skills   # also expose it as a skill to installed agents
 ```
 
-Or just drop the single `agent-notify` file anywhere on your `PATH` and
+Or just drop the single `agentping` file anywhere on your `PATH` and
 `chmod +x` it. Verify:
 
 ```bash
-agent-notify doctor
+agentping doctor
 ```
 
 ## The four verbs
 
 ```bash
 # 1. notify: fire-and-forget banner
-agent-notify notify "Deploy finished, all checks green" --title "CI"
+agentping notify "Deploy finished, all checks green" --title "CI"
 
 # 2. ask: free-text answer (printed to stdout)
-region="$(agent-notify ask 'Which region should I deploy to?' --default 'us-east-1')"
+region="$(agentping ask 'Which region should I deploy to?' --default 'us-east-1')"
 
 # 3. confirm: approve/deny (the exit code IS the answer)
-if agent-notify confirm 'Delete 1,204 orphaned rows?'; then ./cleanup.sh; fi
+if agentping confirm 'Delete 1,204 orphaned rows?'; then ./cleanup.sh; fi
 
 # 4. choose: pick one of several
-plan="$(agent-notify choose 'How should I fix this?' \
+plan="$(agentping choose 'How should I fix this?' \
         --option 'Patch the call site' \
         --option 'Fix the root cause' \
         --option 'Leave it for now')"
@@ -107,7 +107,7 @@ Add `--json` for the full picture (recommended for `ask`/`choose` so you can
 also detect timeouts):
 
 ```bash
-agent-notify ask 'Pick a name' --json
+agentping ask 'Pick a name' --json
 # {"status":"answered","verb":"ask","channel":"system","response":"orion","error":null}
 ```
 
@@ -132,7 +132,7 @@ By default everything goes to the **`system`** channel: a native desktop
 notification/dialog (macOS `osascript`, Linux `notify-send`/`zenity`/`kdialog`,
 Windows PowerShell). Zero config required.
 
-To add more destinations, create `~/.config/agent-notify/config.json`
+To add more destinations, create `~/.config/agentping/config.json`
 (see [`config.example.json`](./config.example.json)):
 
 ```json
@@ -150,7 +150,7 @@ To add more destinations, create `~/.config/agent-notify/config.json`
 }
 ```
 
-Then target one explicitly: `agent-notify ask "..." --channel phone`, or set it as
+Then target one explicitly: `agentping ask "..." --channel phone`, or set it as
 `default_channel` (handy on a headless box where the desktop channel can't run).
 
 ### Logo banners (optional, macOS)
@@ -159,7 +159,7 @@ Out of the box, `notify` uses **osascript** (no extra setup). If you want the
 repo logo in the banner, opt in once:
 
 ```bash
-agent-notify setup-logo
+agentping setup-logo
 ```
 
 That installs `terminal-notifier` if needed, writes config so `notify` uses the
@@ -168,7 +168,7 @@ a test ping. macOS may ask once to allow your terminal app to post notifications
 
 ### Notification sounds (macOS)
 
-Give agent-notify a distinct, recognizable sound so you know a ping is from your
+Give agentping a distinct, recognizable sound so you know a ping is from your
 agent. Set `sound` on the `system` (or `banner`) channel:
 
 ```json
@@ -224,7 +224,7 @@ Messages database, so you can answer from your phone like ntfy.
 ```
 
 ```bash
-agent-notify confirm "Deploy v2 to prod?" --channel iphone   # reply yes/no from your phone
+agentping confirm "Deploy v2 to prod?" --channel iphone   # reply yes/no from your phone
 ```
 
 One-time macOS setup (it fails loud and tells you which of these is missing):
@@ -251,7 +251,7 @@ environment, not the file:
 
 ```bash
 export TWILIO_ACCOUNT_SID=ACxxx TWILIO_AUTH_TOKEN=xxxx
-agent-notify notify "Nightly backup finished" --channel sms
+agentping notify "Nightly backup finished" --channel sms
 ```
 
 For a reply over SMS use `imessage` (macOS) or `ntfy` (any OS) instead; two-way
@@ -264,8 +264,8 @@ SMS would need a public inbound webhook, which this tool deliberately does not r
 
 ## Configuration: tune everything
 
-Everything about a ping is configurable in `~/.config/agent-notify/config.json`
-(override the path with `$AGENT_NOTIFY_CONFIG`, or `$XDG_CONFIG_HOME`). The agent
+Everything about a ping is configurable in `~/.config/agentping/config.json`
+(override the path with `$AGENTPING_CONFIG`, or `$XDG_CONFIG_HOME`). The agent
 always calls the same verbs; this file decides **where** it lands, **how** it looks
 and sounds, **how often** it fires, and **for what** it fires.
 
@@ -312,12 +312,12 @@ can set a global default and override it per channel or per call.
 `title`, `urgency`, `sound`, and `timeout` may live in `defaults` (global) or on
 any individual channel. `policy` applies to `notify` only -- a blocking
 `ask`/`confirm`/`choose` is never suppressed or throttled, because the agent is
-waiting on the answer. Run `agent-notify doctor` to print the resolved channels,
+waiting on the answer. Run `agentping doctor` to print the resolved channels,
 `defaults`, and `policy`.
 
 ## Using it from an agent
 
-`agent-notify` ships a [`SKILL.md`](./SKILL.md), so agents that support skills
+`agentping` ships a [`SKILL.md`](./SKILL.md), so agents that support skills
 (Claude Code, Codex, Cursor, OpenClaw, ...) can load it and learn when to reach for
 it. `./install.sh --skills` symlinks this repo into the skill directories it finds
 (`~/.claude/skills`, `~/.codex/skills`, `~/.cursor/skills`, `~/.openclaw/skills`,
@@ -327,9 +327,9 @@ and the exit-code contract; that is the entire interface.
 ## How it works
 
 ```
-agent --> shell --> agent-notify <verb> <message> [flags]
+agent --> shell --> agentping <verb> <message> [flags]
                        |
-                       |  load ~/.config/agent-notify/config.json (or built-in default)
+                       |  load ~/.config/agentping/config.json (or built-in default)
                        |  pick the channel (--channel, else default_channel)
                        |  deliver; for ask/confirm/choose, block for the reply
                        v

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent-notify: reach a human out-of-band from any AI agent.
+"""agentping: reach a human out-of-band from any AI agent.
 
 An agent that is blocked (waiting on a decision, an approval, or an answer it
 cannot infer) can call this tool to ping the human through their own
@@ -10,13 +10,13 @@ Hermes, and so on.
 Delivery goes through a "channel". The default channel is `system`: a native
 desktop notification or dialog (osascript on macOS, notify-send/zenity on
 Linux, PowerShell on Windows). The user can configure extra channels in
-~/.config/agent-notify/config.json: `ntfy` for phone push with a reply,
+~/.config/agentping/config.json: `ntfy` for phone push with a reply,
 `webhook` for Slack/Discord, or `command` to run any program they like. That
 config file is the "notification linkup" layer: the agent always calls the
 same verbs, the user decides where the ping lands.
 
 Single file, standard library only, Python 3.8+. Drop it on any PATH and go.
-Home: https://github.com/Kevin-Liu-01/Agent-Notify
+Home: https://github.com/Kevin-Liu-01/agentping
 
 Exit codes (stable contract for the calling agent):
     0    delivered / answered / approved / chosen
@@ -639,7 +639,7 @@ class BannerChannel(Channel):
             raise Unsupported(f"channel '{self.name}': logo not found at {path}")
         found = default_logo_path()
         if found is None:
-            raise Unsupported(f"channel '{self.name}': no logo.png; run agent-notify setup-logo")
+            raise Unsupported(f"channel '{self.name}': no logo.png; run agentping setup-logo")
         return found
 
     def _terminal_notifier(self) -> str:
@@ -652,7 +652,7 @@ class BannerChannel(Channel):
         found = shutil.which("terminal-notifier")
         if found is None:
             raise Unsupported(
-                f"channel '{self.name}': terminal-notifier not installed; run agent-notify setup-logo")
+                f"channel '{self.name}': terminal-notifier not installed; run agentping setup-logo")
         return found
 
     def notify(self, req: Ask) -> Result:
@@ -985,15 +985,15 @@ _CHANNEL_TYPES = {
 # --------------------------------------------------------------------------- #
 
 def config_path() -> Path:
-    env = os.environ.get("AGENT_NOTIFY_CONFIG")
+    env = os.environ.get("AGENTPING_CONFIG")
     if env:
         return Path(env).expanduser()
     base = os.environ.get("XDG_CONFIG_HOME") or "~/.config"
-    return Path(base).expanduser() / "agent-notify" / "config.json"
+    return Path(base).expanduser() / "agentping" / "config.json"
 
 
 def tool_root() -> Path:
-    """Directory containing the agent-notify script (repo root when cloned)."""
+    """Directory containing the agentping script (repo root when cloned)."""
     return Path(__file__).resolve().parent
 
 
@@ -1073,7 +1073,7 @@ def capabilities(spec: dict) -> list:
 
 def cmd_doctor(conf: dict) -> int:
     found = config_path().is_file()
-    print(f"agent-notify {VERSION}")
+    print(f"agentping {VERSION}")
     print(f"os:       {platform.system()} ({platform.machine()}), python {platform.python_version()}")
     print(f"config:   {config_path()} {'(found)' if found else '(absent -> built-in system default)'}")
     print("backends: " + ", ".join(
@@ -1160,7 +1160,7 @@ def cmd_setup_logo(test: bool) -> int:
         return EXIT_OK
 
     req = Ask(verb="notify", message="Logo banners are on. Plain notify shows the bell.",
-              title="Agent-Notify")
+              title="agentping")
     res = make_channel("banner", conf).notify(req)
     if res.status == "error":
         print(res.error or "test notify failed", file=sys.stderr)
@@ -1187,9 +1187,9 @@ def emit(res: Result, as_json: bool) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="agent-notify",
+        prog="agentping",
         description="Reach a human out-of-band from any AI agent: notify, ask, confirm, choose.")
-    parser.add_argument("--version", action="version", version=f"agent-notify {VERSION}")
+    parser.add_argument("--version", action="version", version=f"agentping {VERSION}")
     sub = parser.add_subparsers(dest="verb", required=True)
 
     def shared(sp: argparse.ArgumentParser) -> None:
