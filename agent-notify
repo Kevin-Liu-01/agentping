@@ -63,6 +63,11 @@ NTFY_OUT_PREFIX = "[agent] "
 # is that instant in Unix seconds, used to translate our wall clock to its clock.
 APPLE_EPOCH = 978307200
 
+# Per-verb macOS sound names (files in /System/Library/Sounds) used when a channel
+# sets "sound": "auto" -- each verb gets a recognizable tone so you can tell by ear
+# whether the agent is just informing you or is blocked waiting on your decision.
+AUTO_SOUNDS = {"notify": "Glass", "ask": "Ping", "choose": "Pop", "confirm": "Sosumi"}
+
 
 @dataclass
 class Ask:
@@ -77,6 +82,7 @@ class Ask:
     options: list = field(default_factory=list)     # choices (choose)
     yes: str = "Approve"
     no: str = "Deny"
+    sound: str = ""                                 # macOS sound name; "" = silent
 
     def has_timeout(self) -> bool:
         return bool(self.timeout and self.timeout > 0)
@@ -98,6 +104,8 @@ class Result:
             "answered": EXIT_OK,
             "approved": EXIT_OK,
             "chosen": EXIT_OK,
+            "suppressed": EXIT_OK,      # policy filtered it out; not an error
+            "throttled": EXIT_OK,       # too soon after the last notify
             "denied": EXIT_DECLINED,
             "cancelled": EXIT_DECLINED,
             "timeout": EXIT_TIMEOUT,
@@ -119,8 +127,27 @@ def _as_str(s: str) -> str:
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
+def _mac_play_sound(name: str) -> None:
+    """Fire-and-forget a named macOS sound. Used for dialogs (ask/confirm/choose),
+    which -- unlike `display notification` -- have no built-in sound parameter.
+    Searches the user and system Sounds folders and stays silent if the name is
+    empty or the file is missing, so it never blocks or errors the prompt."""
+    if not name:
+        return
+    for base in (Path.home() / "Library" / "Sounds", Path("/System/Library/Sounds"),
+                 Path("/Library/Sounds")):
+        f = base / f"{name}.aiff"
+        if f.is_file():
+            try:
+                subprocess.Popen(["afplay", str(f)],
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except OSError:
+                pass
+            return
+
+
 def _mac_notify(req: Ask, channel: str) -> Result:
-    sound = ' sound name "Sosumi"' if req.urgency == "high" else ""
+    sound = f" sound name {_as_str(req.sound)}" if req.sound else ""
     script = f"display notification {_as_str(req.message)} with title {_as_str(req.title)}{sound}"
     cp = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
     if cp.returncode != 0:
@@ -130,6 +157,7 @@ def _mac_notify(req: Ask, channel: str) -> Result:
 
 def _mac_dialog(script: str, req: Ask, channel: str, verb: str,
                 on_ok: Callable[[str], Result]) -> Result:
+    _mac_play_sound(req.sound)
     # The dialog self-dismisses via `giving up after`, so give osascript a few
     # extra seconds before we treat the subprocess itself as stuck.
     sp_timeout = (req.timeout + 15) if req.has_timeout() else None
@@ -175,6 +203,7 @@ def _mac_confirm(req: Ask, channel: str) -> Result:
 
 
 def _mac_choose(req: Ask, channel: str) -> Result:
+    _mac_play_sound(req.sound)
     items = ", ".join(_as_str(o) for o in req.options)
     first = _as_str(req.options[0])
     script = (
@@ -632,6 +661,8 @@ class BannerChannel(Channel):
         logo = str(self._logo())
         tn = self._terminal_notifier()
         argv = [tn, "-title", req.title, "-message", req.message, "-contentImage", logo]
+        if req.sound:
+            argv.extend(["-sound", req.sound])
         sender = self.cfg.get("sender")
         if sender:
             argv.extend(["-sender", sender])
@@ -1056,6 +1087,9 @@ def cmd_doctor(conf: dict) -> int:
     for name, spec in conf["channels"].items():
         caps = ", ".join(capabilities(spec)) or "(none)"
         print(f"  - {name} [{spec.get('type', 'system')}]: {caps}")
+    for block in ("defaults", "policy"):
+        if conf.get(block):
+            print(f"{block}: " + ", ".join(f"{k}={v}" for k, v in conf[block].items()))
     return EXIT_OK
 
 
@@ -1146,7 +1180,7 @@ def emit(res: Result, as_json: bool) -> int:
         print(res.status)                                  # approved|denied|timeout|cancelled
     elif res.response is not None:
         print(res.response)
-    elif res.status in ("timeout", "cancelled"):
+    elif res.status in ("timeout", "cancelled", "suppressed", "throttled"):
         print(res.status, file=sys.stderr)
     return res.exit_code()
 
@@ -1159,9 +1193,12 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="verb", required=True)
 
     def shared(sp: argparse.ArgumentParser) -> None:
-        sp.add_argument("--title", default="Agent", help="notification title")
+        sp.add_argument("--title", default=None, help="notification title (default: Agent)")
         sp.add_argument("--channel", default=None, help="channel name from config (default: configured default)")
-        sp.add_argument("--urgency", choices=["low", "normal", "high"], default="normal")
+        sp.add_argument("--urgency", choices=["low", "normal", "high"], default=None,
+                        help="sound / priority hint (default: normal)")
+        sp.add_argument("--sound", default=None,
+                        help="macOS sound (e.g. Glass, Ping, Sosumi), 'auto' for per-verb, or 'none'")
         sp.add_argument("--json", action="store_true", help="emit a JSON result object")
 
     p_notify = sub.add_parser("notify", help="fire-and-forget notification")
@@ -1171,21 +1208,21 @@ def build_parser() -> argparse.ArgumentParser:
     p_ask = sub.add_parser("ask", help="ask a free-text question and print the answer")
     p_ask.add_argument("message")
     p_ask.add_argument("--default", default="", help="prefilled answer")
-    p_ask.add_argument("--timeout", type=float, default=120.0, help="seconds to wait (0 = forever)")
+    p_ask.add_argument("--timeout", type=float, default=None, help="seconds to wait (0 = forever; default 120)")
     shared(p_ask)
 
     p_confirm = sub.add_parser("confirm", help="ask for approval; exit 0=approved, 20=denied")
     p_confirm.add_argument("message")
     p_confirm.add_argument("--yes", default="Approve", help="approve button label")
     p_confirm.add_argument("--no", default="Deny", help="deny button label")
-    p_confirm.add_argument("--timeout", type=float, default=120.0)
+    p_confirm.add_argument("--timeout", type=float, default=None)
     shared(p_confirm)
 
     p_choose = sub.add_parser("choose", help="pick one of several options")
     p_choose.add_argument("message")
     p_choose.add_argument("--option", action="append", default=[], dest="options",
                           help="an option (repeat for each; at least 2)")
-    p_choose.add_argument("--timeout", type=float, default=120.0)
+    p_choose.add_argument("--timeout", type=float, default=None)
     shared(p_choose)
 
     sub.add_parser("doctor", help="report platform, backends, and configured channels")
@@ -1194,6 +1231,69 @@ def build_parser() -> argparse.ArgumentParser:
     p_setup.add_argument("--no-test", action="store_true",
                          help="write config only; do not send a test banner")
     return parser
+
+
+def resolve_sound(verb: str, urgency: str, flag: Optional[str],
+                  channel_spec: dict, defaults: Optional[dict] = None) -> str:
+    """Pick the macOS sound name for a ping. Priority: the --sound flag, then the
+    channel's `sound`, then `defaults.sound`, then the legacy urgency rule. Each may
+    be a name, a {verb: name} map, or "auto"; "none"/"off"/"" silences it."""
+    raw = flag
+    if raw is None:
+        raw = channel_spec.get("sound")
+    if raw is None and defaults:
+        raw = defaults.get("sound")
+    if isinstance(raw, dict):
+        raw = raw.get(verb) or raw.get("default")
+    raw = (raw or "").strip()
+    low = raw.lower()
+    if low in ("none", "off"):
+        return ""
+    if low == "auto":
+        return AUTO_SOUNDS.get(verb, "")
+    if raw:
+        return raw
+    return "Sosumi" if urgency == "high" else ""
+
+
+_URGENCY_RANK = {"low": 0, "normal": 1, "high": 2}
+
+
+def _state_path() -> Path:
+    return config_path().parent / "state.json"
+
+
+def _read_state() -> dict:
+    try:
+        return json.loads(_state_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _record_notify() -> None:
+    try:
+        path = _state_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        state = _read_state()
+        state["last_notify"] = time.time()
+        path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+    except OSError:
+        pass
+
+
+def notify_policy(conf: dict, req: Ask, channel: str) -> Optional[Result]:
+    """Delivery policy for `notify` only -- a blocking question is never gated.
+    Returns a Result when the ping should be skipped: 'suppressed' if its urgency
+    is below `policy.min_urgency`, 'throttled' if it lands within
+    `policy.min_interval` seconds of the last delivered notify. None lets it through."""
+    policy = conf.get("policy") or {}
+    floor = policy.get("min_urgency")
+    if floor and _URGENCY_RANK.get(req.urgency, 1) < _URGENCY_RANK.get(floor, 0):
+        return Result("suppressed", channel, "notify")
+    interval = float(policy.get("min_interval") or 0)
+    if interval > 0 and (time.time() - _read_state().get("last_notify", 0)) < interval:
+        return Result("throttled", channel, "notify")
+    return None
 
 
 def main(argv=None) -> int:
@@ -1207,22 +1307,51 @@ def main(argv=None) -> int:
         print("choose needs at least two --option values", file=sys.stderr)
         return EXIT_USAGE
 
-    req = Ask(verb=args.verb, message=args.message, title=args.title, urgency=args.urgency,
-              timeout=getattr(args, "timeout", 0.0), default=getattr(args, "default", ""),
-              options=getattr(args, "options", []),
-              yes=getattr(args, "yes", "Approve"), no=getattr(args, "no", "Deny"))
-    # default_channel may be a single name, or a per-verb map like
-    # {"notify": "banner", "default": "system"} to route verbs differently.
+    # Resolve the channel first. default_channel may be a single name or a per-verb
+    # map like {"notify": "banner", "default": "system"} to route verbs differently.
     default = conf["default_channel"]
     if isinstance(default, dict):
         default = default.get(args.verb) or default.get("default") or "system"
     channel_name = args.channel or default
+    spec = conf.get("channels", {}).get(channel_name) or {}
+    defaults = conf.get("defaults") or {}
+
+    # Every field falls back: flag -> channel config -> defaults block -> built-in.
+    def pick(field, flag_value, builtin):
+        if flag_value is not None:
+            return flag_value
+        if field in spec:
+            return spec[field]
+        if field in defaults:
+            return defaults[field]
+        return builtin
+
+    urgency = pick("urgency", args.urgency, "normal")
+    req = Ask(
+        verb=args.verb, message=args.message,
+        title=pick("title", args.title, "Agent"),
+        urgency=urgency,
+        timeout=float(pick("timeout", getattr(args, "timeout", None), 120.0)),
+        default=getattr(args, "default", ""),
+        options=getattr(args, "options", []),
+        yes=getattr(args, "yes", "Approve"), no=getattr(args, "no", "Deny"),
+        sound=resolve_sound(args.verb, urgency, args.sound, spec, defaults),
+    )
+
+    if args.verb == "notify":
+        skipped = notify_policy(conf, req, channel_name)
+        if skipped is not None:
+            return emit(skipped, args.json)
+
     try:
         res = make_channel(channel_name, conf).handle(req)
     except Unsupported as exc:
         res = Result("error", channel_name, args.verb, error=str(exc))
     except Exception as exc:                                       # noqa: BLE001
         res = Result("error", channel_name, args.verb, error=f"{type(exc).__name__}: {exc}")
+    throttled = float((conf.get("policy") or {}).get("min_interval") or 0) > 0
+    if args.verb == "notify" and res.status == "delivered" and throttled:
+        _record_notify()
     return emit(res, args.json)
 
 

@@ -1,8 +1,25 @@
 {
   "default_channel": "system",
+
+  "defaults": {
+    "title": "Agent",
+    "urgency": "normal",
+    "sound": "auto",
+    "timeout": 120,
+    "_comment": "Global defaults for every ping. Resolution order for each field: --flag > channel config > this defaults block > built-in. Override any of these on a single channel below, or per call with a flag."
+  },
+
+  "policy": {
+    "min_urgency": "low",
+    "min_interval": 0,
+    "_comment": "notify-only delivery policy. min_urgency: only fire notify at/above this level (low|normal|high) -- lower ones return 'suppressed' (exit 0). min_interval: drop a notify within N seconds of the last delivered one -- returns 'throttled' (exit 0); 0 = off. Blocking verbs (ask/confirm/choose) are never gated, since the agent is waiting."
+  },
+
   "channels": {
     "system": {
-      "type": "system"
+      "type": "system",
+      "sound": "auto",
+      "_comment": "macOS notification sound. 'auto' gives each verb its own tone (notify=Glass, ask=Ping, choose=Pop, confirm=Sosumi) so you know by ear what the agent needs. Or set one name (Glass, Hero, Ping, Sosumi, Submarine, ...), a per-verb map like {\"confirm\": \"Sosumi\"}, or \"none\" to silence. Custom: drop a .aiff in ~/Library/Sounds and use its name. Per-call override: --sound NAME."
     },
 
     "banner": {

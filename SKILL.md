@@ -70,7 +70,8 @@ pick="$("$AN" choose 'Which fix do you want?' \
 # {"status":"answered","verb":"ask","channel":"system","response":"us-east-1","error":null}
 ```
 
-`status` is authoritative: `delivered|answered|approved|denied|chosen|timeout|cancelled|error`.
+`status` is authoritative: `delivered|answered|approved|denied|chosen|timeout|cancelled|error`,
+plus `suppressed|throttled` for a `notify` the user's config chose not to show (both exit `0`; harmless, keep going).
 Always handle `timeout`: if the human never answered, do not guess; stop and
 report that you are waiting on them.
 
@@ -80,6 +81,7 @@ report that you are waiting on them.
 - `--timeout SECONDS`: how long to wait for a reply; `0` = wait forever (default `120`). `notify` ignores it.
 - `--channel NAME`: send through a specific configured channel instead of the default.
 - `--urgency low|normal|high`: hint for sound or priority.
+- `--sound NAME`: macOS notification sound (`Glass`, `Ping`, `Sosumi`, ...), `auto` for a per-verb tone, or `none`. Usually set once in config; rarely needed per call.
 - `ask --default TEXT`: prefill the answer box.
 - `confirm --yes LABEL --no LABEL`: relabel the buttons (the labels are also what counts as approve/deny).
 - `choose --option A --option B ...`: the choices (need at least two).

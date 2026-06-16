@@ -109,6 +109,7 @@ agent-notify ask 'Pick a name' --json
 | `--timeout SECONDS` | ask/confirm/choose | wait time; `0` = forever (default `120`) |
 | `--channel NAME` | all | send through a specific configured channel |
 | `--urgency low\|normal\|high` | all | sound / priority hint |
+| `--sound NAME` | all (macOS) | notification sound: a name (`Glass`, `Ping`, `Sosumi`...), `auto` (a tone per verb), or `none` |
 | `--default TEXT` | ask | prefill the answer box |
 | `--yes / --no LABEL` | confirm | relabel buttons (labels are the approve/deny words) |
 | `--option VALUE` | choose | a choice; repeat for each (need >= 2) |
@@ -152,6 +153,28 @@ agent-notify setup-logo
 That installs `terminal-notifier` if needed, writes config so `notify` uses the
 `banner` channel while `ask`/`confirm`/`choose` stay on system dialogs, and sends
 a test ping. macOS may ask once to allow your terminal app to post notifications.
+
+### Notification sounds (macOS)
+
+Give agent-notify a distinct, recognizable sound so you know a ping is from your
+agent. Set `sound` on the `system` (or `banner`) channel:
+
+```json
+"system": { "type": "system", "sound": "auto" }
+```
+
+- `"auto"` plays a **different tone per verb** so you can tell by ear what the
+  agent needs: `notify` -> Glass, `ask` -> Ping, `choose` -> Pop, `confirm` -> Sosumi.
+- Set one name for everything (`"sound": "Hero"`), a per-verb map
+  (`"sound": { "confirm": "Sosumi", "default": "Glass" }`), or `"none"` to silence.
+- Override per call with `--sound NAME` (or `--sound none`).
+- Names are macOS sounds in `/System/Library/Sounds` (Glass, Hero, Ping, Pop,
+  Sosumi, Submarine, Tink, ...). For a **custom** sound, drop a `.aiff` in
+  `~/Library/Sounds` and use its filename. Sounds require notifications to be
+  allowed for your terminal in System Settings -> Notifications.
+
+This covers the desktop **`system`** and **`banner`** channels. `imessage`/`sms`
+use the phone's text tone, and `ntfy` uses the ntfy app's sound (set there).
 
 ### Channel types
 
@@ -226,6 +249,59 @@ SMS would need a public inbound webhook, which this tool deliberately does not r
 > `system` channel on a machine with no desktop), it fails loudly with a typed
 > error naming the problem. It never quietly routes elsewhere. Choose the channel
 > deliberately.
+
+## Configuration: tune everything
+
+Everything about a ping is configurable in `~/.config/agent-notify/config.json`
+(override the path with `$AGENT_NOTIFY_CONFIG`, or `$XDG_CONFIG_HOME`). The agent
+always calls the same verbs; this file decides **where** it lands, **how** it looks
+and sounds, **how often** it fires, and **for what** it fires.
+
+```json
+{
+  "default_channel": { "notify": "banner", "default": "system" },
+
+  "defaults": {
+    "title": "Agent",
+    "urgency": "normal",
+    "sound": "auto",
+    "timeout": 120
+  },
+
+  "policy": {
+    "min_urgency": "low",
+    "min_interval": 0
+  },
+
+  "channels": {
+    "system": { "type": "system", "sound": "auto" },
+    "quiet":  { "type": "system", "sound": "none", "title": "Background agent" }
+  }
+}
+```
+
+**Resolution order** for every field: a command-line flag wins, then the chosen
+channel's config, then the `defaults` block, then the built-in fallback. So you
+can set a global default and override it per channel or per call.
+
+### What you can configure
+
+| where | key | what it controls |
+|-------|-----|------------------|
+| routing | `default_channel` | a channel name, or a per-verb map `{ "notify": "banner", "default": "system" }` |
+| appearance | `title` | the notification title (default `Agent`) |
+| appearance | `urgency` | `low` / `normal` / `high` (sound + priority hint) |
+| appearance | `sound` | macOS sound: a name, a per-verb map, `auto`, or `none` (see [Notification sounds](#notification-sounds-macos)) |
+| appearance | `banner` channel `logo` / `sender` | the image and the app a logo banner appears to come from |
+| timing | `timeout` | seconds a blocking verb waits (`0` = forever) |
+| **how often** | `policy.min_interval` | drop a `notify` that lands within N seconds of the last delivered one (returns `throttled`, exit 0). `0` = never throttle |
+| **for what** | `policy.min_urgency` | only deliver a `notify` at or above this urgency; lower ones return `suppressed` (exit 0) |
+
+`title`, `urgency`, `sound`, and `timeout` may live in `defaults` (global) or on
+any individual channel. `policy` applies to `notify` only -- a blocking
+`ask`/`confirm`/`choose` is never suppressed or throttled, because the agent is
+waiting on the answer. Run `agent-notify doctor` to print the resolved channels,
+`defaults`, and `policy`.
 
 ## Using it from an agent
 
