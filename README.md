@@ -138,18 +138,25 @@ To add more destinations, create `~/.config/agent-notify/config.json`
 Then target one explicitly: `agent-notify ask "..." --channel phone`, or set it as
 `default_channel` (handy on a headless box where the desktop channel can't run).
 
-`default_channel` can also be a per-verb map, so one-way pings go one place while
-prompts stay on the desktop:
+### Logo banners (optional, macOS)
 
-```json
-"default_channel": { "notify": "banner", "default": "system" }
+Out of the box, `notify` uses **osascript** (no extra setup). If you want the
+repo logo in the banner, opt in once:
+
+```bash
+agent-notify setup-logo
 ```
+
+That installs `terminal-notifier` if needed, writes config so `notify` uses the
+`banner` channel while `ask`/`confirm`/`choose` stay on system dialogs, and sends
+a test ping. macOS may ask once to allow your terminal app to post notifications.
 
 ### Channel types
 
 | type | notify | ask / confirm / choose | notes |
 |------|:------:|:----------------------:|-------|
 | `system`  | yes | yes | native desktop; the default |
+| `banner`  | yes | no | macOS logo banners via `setup-logo` (terminal-notifier) |
 | `ntfy`    | yes | yes (round-trip) | phone push; you reply from the [ntfy](https://ntfy.sh) app and the agent reads it back |
 | `webhook` | yes | no | one-way POST; default body `{"text": ...}` suits Slack. Discord needs a `content` body template (see [`config.example.json`](./config.example.json)) |
 | `command` | yes | yes | run any program; placeholders `{message} {title} {default} {options}` |
@@ -159,8 +166,8 @@ your question to a topic, you get a push notification, you reply to the topic fr
 the ntfy app, and the agent reads your reply back off the same topic. Self-host
 ntfy or use the public `ntfy.sh`; pick an unguessable topic name.
 
-The **`command`** channel is the escape hatch for anything else: `terminal-notifier`,
-a Telegram CLI, text-to-speech, a webhook with a custom shape. For `ask`/`choose`
+The **`command`** channel is the escape hatch for anything else: a Telegram CLI,
+text-to-speech, a webhook with a custom shape. For `ask`/`choose`
 the agent reads your program's **stdout**; for `confirm`, **exit 0 = approve**,
 nonzero = deny.
 

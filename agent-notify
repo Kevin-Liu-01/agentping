@@ -575,11 +575,58 @@ class CommandChannel(Channel):
         return Result("chosen", self.name, "choose", response=(cp.stdout or "").strip())
 
 
+class BannerChannel(Channel):
+    """macOS notify banners with a logo image (terminal-notifier). Opt in via setup-logo."""
+
+    type = "banner"
+
+    def _logo(self) -> Path:
+        raw = self.cfg.get("logo")
+        if raw:
+            path = Path(raw).expanduser()
+            if path.is_file():
+                return path
+            raise Unsupported(f"channel '{self.name}': logo not found at {path}")
+        found = default_logo_path()
+        if found is None:
+            raise Unsupported(f"channel '{self.name}': no logo.png; run agent-notify setup-logo")
+        return found
+
+    def _terminal_notifier(self) -> str:
+        raw = self.cfg.get("terminal_notifier")
+        if raw:
+            path = Path(raw).expanduser()
+            if path.is_file() and os.access(path, os.X_OK):
+                return str(path)
+            raise Unsupported(f"channel '{self.name}': terminal-notifier not found at {path}")
+        found = shutil.which("terminal-notifier")
+        if found is None:
+            raise Unsupported(
+                f"channel '{self.name}': terminal-notifier not installed; run agent-notify setup-logo")
+        return found
+
+    def notify(self, req: Ask) -> Result:
+        if platform.system() != "Darwin":
+            raise Unsupported(f"channel '{self.name}': banner channel is macOS only")
+        logo = str(self._logo())
+        tn = self._terminal_notifier()
+        argv = [tn, "-title", req.title, "-message", req.message, "-contentImage", logo]
+        sender = self.cfg.get("sender")
+        if sender:
+            argv.extend(["-sender", sender])
+        cp = subprocess.run(argv, capture_output=True, text=True)
+        if cp.returncode != 0:
+            err = (cp.stderr or cp.stdout or "").strip() or "terminal-notifier failed"
+            return Result("error", self.name, "notify", error=err)
+        return Result("delivered", self.name, "notify")
+
+
 _CHANNEL_TYPES = {
     "system": SystemChannel,
     "ntfy": NtfyChannel,
     "webhook": WebhookChannel,
     "command": CommandChannel,
+    "banner": BannerChannel,
 }
 
 
@@ -593,6 +640,26 @@ def config_path() -> Path:
         return Path(env).expanduser()
     base = os.environ.get("XDG_CONFIG_HOME") or "~/.config"
     return Path(base).expanduser() / "agent-notify" / "config.json"
+
+
+def tool_root() -> Path:
+    """Directory containing the agent-notify script (repo root when cloned)."""
+    return Path(__file__).resolve().parent
+
+
+def default_logo_path() -> Optional[Path]:
+    logo = tool_root() / "assets" / "logo.png"
+    return logo if logo.is_file() else None
+
+
+def save_config(conf: dict) -> None:
+    path = config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(conf, indent=2) + "\n", encoding="utf-8")
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass
 
 
 def load_config() -> dict:
@@ -636,6 +703,10 @@ def capabilities(spec: dict) -> list:
         return ["notify", "ask", "confirm", "choose"] if spec.get("topic") else ["(needs 'topic')"]
     if kind == "command":
         return [v for v in ("notify", "ask", "confirm", "choose") if spec.get(v)]
+    if kind == "banner":
+        if platform.system() != "Darwin":
+            return []
+        return ["notify"] if shutil.which("terminal-notifier") or spec.get("terminal_notifier") else ["(needs terminal-notifier)"]
     if kind == "webhook":
         return ["notify"] if spec.get("url") else ["(needs 'url')"]
     return ["(unknown type)"]
@@ -657,6 +728,82 @@ def cmd_doctor(conf: dict) -> int:
     for name, spec in conf["channels"].items():
         caps = ", ".join(capabilities(spec)) or "(none)"
         print(f"  - {name} [{spec.get('type', 'system')}]: {caps}")
+    return EXIT_OK
+
+
+def export_logo_png() -> Path:
+    """Render assets/logo.svg to assets/logo.png (macOS: headless Chrome)."""
+    root = tool_root()
+    svg = root / "assets" / "logo.svg"
+    png = root / "assets" / "logo.png"
+    if png.is_file():
+        return png
+    if not svg.is_file():
+        raise Unsupported(f"logo source missing: {svg}")
+    chrome = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+    if not chrome.is_file():
+        raise Unsupported("logo.png missing and Chrome not found to export it from logo.svg")
+    png.parent.mkdir(parents=True, exist_ok=True)
+    cp = subprocess.run(
+        [str(chrome), "--headless=new", "--disable-gpu", "--force-device-scale-factor=2",
+         "--default-background-color=00000000", "--window-size=256,256",
+         f"--screenshot={png}", f"file://{svg.resolve()}"],
+        capture_output=True, text=True)
+    if cp.returncode != 0 or not png.is_file():
+        err = (cp.stderr or cp.stdout or "").strip() or "logo export failed"
+        raise Unsupported(err)
+    return png
+
+
+def ensure_terminal_notifier() -> str:
+    found = shutil.which("terminal-notifier")
+    if found:
+        return found
+    if shutil.which("brew") is None:
+        raise Unsupported("terminal-notifier not found; install with: brew install terminal-notifier")
+    print("installing terminal-notifier via brew...")
+    cp = subprocess.run(["brew", "install", "terminal-notifier"], capture_output=True, text=True)
+    if cp.returncode != 0:
+        err = (cp.stderr or cp.stdout or "").strip() or "brew install failed"
+        raise Unsupported(err)
+    found = shutil.which("terminal-notifier")
+    if found is None:
+        raise Unsupported("terminal-notifier still missing after brew install")
+    return found
+
+
+def cmd_setup_logo(test: bool) -> int:
+    if platform.system() != "Darwin":
+        print("setup-logo is macOS only (uses terminal-notifier for logo banners)", file=sys.stderr)
+        return EXIT_USAGE
+    try:
+        png = export_logo_png()
+        tn = ensure_terminal_notifier()
+    except Unsupported as exc:
+        print(str(exc), file=sys.stderr)
+        return EXIT_PROVIDER
+
+    conf = load_config()
+    channels = conf.setdefault("channels", {})
+    channels.setdefault("system", {"type": "system"})
+    channels["banner"] = {"type": "banner", "logo": str(png), "terminal_notifier": tn}
+    conf["default_channel"] = {"notify": "banner", "default": "system"}
+    save_config(conf)
+    print(f"wrote {config_path()}")
+    print("default: notify -> banner (logo), ask/confirm/choose -> system (osascript dialogs)")
+    print("note: macOS may ask once to allow Terminal (or your terminal app) to send notifications.")
+    print("      System Settings -> Notifications -> enable banners for that app.")
+
+    if not test:
+        return EXIT_OK
+
+    req = Ask(verb="notify", message="Logo banners are on. Plain notify shows the bell.",
+              title="Agent-Notify")
+    res = make_channel("banner", conf).notify(req)
+    if res.status == "error":
+        print(res.error or "test notify failed", file=sys.stderr)
+        return EXIT_PROVIDER
+    print("test notify sent")
     return EXIT_OK
 
 
@@ -714,6 +861,10 @@ def build_parser() -> argparse.ArgumentParser:
     shared(p_choose)
 
     sub.add_parser("doctor", help="report platform, backends, and configured channels")
+    p_setup = sub.add_parser("setup-logo",
+                             help="opt in: logo banners for notify (macOS, terminal-notifier)")
+    p_setup.add_argument("--no-test", action="store_true",
+                         help="write config only; do not send a test banner")
     return parser
 
 
@@ -722,6 +873,8 @@ def main(argv=None) -> int:
     conf = load_config()
     if args.verb == "doctor":
         return cmd_doctor(conf)
+    if args.verb == "setup-logo":
+        return cmd_setup_logo(test=not args.no_test)
     if args.verb == "choose" and len(args.options) < 2:
         print("choose needs at least two --option values", file=sys.stderr)
         return EXIT_USAGE

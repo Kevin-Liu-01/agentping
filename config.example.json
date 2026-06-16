@@ -5,6 +5,11 @@
       "type": "system"
     },
 
+    "banner": {
+      "type": "banner",
+      "_comment": "Optional (macOS). Run: agent-notify setup-logo. Routes plain notify to a logo banner; ask/confirm/choose stay on system dialogs. Requires: brew install terminal-notifier"
+    },
+
     "phone": {
       "type": "ntfy",
       "server": "https://ntfy.sh",
@@ -31,15 +36,6 @@
       "type": "command",
       "_comment": "Escape hatch: run any program. Placeholders: {message} {title} {default} {options}. notify uses the exit code; ask reads stdout; confirm treats exit 0 as approve and nonzero as deny.",
       "notify": ["say", "{title}. {message}"]
-    },
-
-    "terminal-notifier": {
-      "type": "command",
-      "_comment": "macOS only (brew install terminal-notifier). The -contentImage flag puts the logo in the banner. To show the logo on every plain notify while keeping dialogs on the system channel, set default_channel to {\"notify\": \"terminal-notifier\", \"default\": \"system\"}.",
-      "notify": [
-        "terminal-notifier", "-title", "{title}", "-message", "{message}",
-        "-contentImage", "/absolute/path/to/Agent-Notify/assets/logo.png"
-      ]
     }
   }
 }

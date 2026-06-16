@@ -99,3 +99,25 @@ channels are configured and what each can do. If the default channel cannot do
 the verb you need (e.g. a headless box with no desktop), it fails loud with a
 typed error rather than silently doing nothing; pick another `--channel` or
 tell the user to configure one. See `README.md` for the config schema.
+
+## Logo banners (optional, macOS)
+
+**Default is osascript** (zero setup, no extra permission prompts). Do not run
+logo setup unless the user explicitly wants the bell image in notify banners.
+
+When they do, on macOS only:
+
+```bash
+"$AN" setup-logo
+```
+
+That installs `terminal-notifier` if needed, ensures `assets/logo.png` exists,
+writes `~/.config/agent-notify/config.json` so `notify` uses the `banner`
+channel while `ask`/`confirm`/`choose` stay on system dialogs, and sends one
+test banner. The user may need to allow notifications for their terminal app
+once (System Settings -> Notifications).
+
+To skip the test ping: `"$AN" setup-logo --no-test`.
+
+To revert to osascript-only defaults, set `"default_channel": "system"` in the
+config (or delete `~/.config/agent-notify/config.json`).

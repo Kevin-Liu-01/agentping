@@ -41,7 +41,7 @@ if [ "$WITH_SKILLS" = 1 ]; then
   done
 fi
 
-echo
 echo "done. verify with:  agent-notify doctor"
+echo "optional (macOS logo banners):  agent-notify setup-logo"
 [ -f "$HOME/.config/agent-notify/config.json" ] || \
-  echo "optional: cp config.example.json ~/.config/agent-notify/config.json  (to add phone/Slack/custom channels)"
+  echo "optional: cp config.example.json ~/.config/agent-notify/config.json  (phone/Slack/custom channels)"
