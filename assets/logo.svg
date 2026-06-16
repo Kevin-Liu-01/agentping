@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="t">
   <title id="t">Agent-Notify logo</title>
-  <rect width="256" height="256" rx="56" fill="#EF4444"/>
+  <rect width="256" height="256" rx="56" fill="#0D9488"/>
 
   <!-- antenna -->
   <line x1="128" y1="70" x2="128" y2="42" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"/>
@@ -11,7 +11,7 @@
   <circle cx="128" cy="194" r="11" fill="#FFFFFF"/>
 
   <!-- smiley face (red knockout) -->
-  <circle cx="114" cy="120" r="7" fill="#EF4444"/>
-  <circle cx="142" cy="120" r="7" fill="#EF4444"/>
-  <path d="M113 140 Q128 154 143 140" fill="none" stroke="#EF4444" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="114" cy="120" r="7" fill="#0D9488"/>
+  <circle cx="142" cy="120" r="7" fill="#0D9488"/>
+  <path d="M113 140 Q128 154 143 140" fill="none" stroke="#0D9488" stroke-width="6" stroke-linecap="round"/>
 </svg>
