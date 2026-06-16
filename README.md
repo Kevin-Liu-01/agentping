@@ -13,7 +13,7 @@
   <a href="LICENSE">MIT</a>
 </p>
 
-When an agent is blocked - it needs your approval, an answer, or a decision - it
+When an agent is blocked and needs your approval, an answer, or a decision, it
 pings you through your normal notification settings and waits for your reply. No
 more coming back to a chat that has been idle for an hour because the agent was
 too polite to interrupt.
@@ -34,12 +34,12 @@ agent-notify confirm "Run the destructive migration on prod?" && ./migrate.sh
 Agents stall silently or, worse, guess. Both are bad. `agent-notify` gives them
 a reliable out-of-band channel to you:
 
-- **Approval gates** - pause before anything risky or irreversible.
-- **Real questions** - get the one answer the agent genuinely cannot infer.
-- **Sign-off** - "the long job finished; what next?"
-- **Away from the keyboard?** - route the ping to your **phone** and reply from there.
+- **Approval gates.** Pause before anything risky or irreversible.
+- **Real questions.** Get the one answer the agent genuinely cannot infer.
+- **Sign-off.** "The long job finished; what next?"
+- **Away from the keyboard?** Route the ping to your **phone** and reply from there.
 
-The agent always calls the same four verbs. **You** decide where the ping lands -
+The agent always calls the same four verbs. **You** decide where the ping lands:
 desktop, phone, Slack, or a command of your own. That indirection is the whole
 idea: the *notification linkup* lives in your config, not in the agent.
 
@@ -63,16 +63,16 @@ agent-notify doctor
 ## The four verbs
 
 ```bash
-# 1. notify - fire-and-forget banner
-agent-notify notify "Deploy finished - all checks green" --title "CI"
+# 1. notify: fire-and-forget banner
+agent-notify notify "Deploy finished, all checks green" --title "CI"
 
-# 2. ask - free-text answer (printed to stdout)
+# 2. ask: free-text answer (printed to stdout)
 region="$(agent-notify ask 'Which region should I deploy to?' --default 'us-east-1')"
 
-# 3. confirm - approve / deny (the exit code IS the answer)
+# 3. confirm: approve/deny (the exit code IS the answer)
 if agent-notify confirm 'Delete 1,204 orphaned rows?'; then ./cleanup.sh; fi
 
-# 4. choose - pick one of several
+# 4. choose: pick one of several
 plan="$(agent-notify choose 'How should I fix this?' \
         --option 'Patch the call site' \
         --option 'Fix the root cause' \
@@ -128,13 +128,13 @@ To add more destinations, create `~/.config/agent-notify/config.json`
   "channels": {
     "system": { "type": "system" },
     "phone":  { "type": "ntfy", "topic": "my-unguessable-topic-x9f2" },
-    "slack":  { "type": "webhook", "url": "https://hooks.slack.com/services/…" },
+    "slack":  { "type": "webhook", "url": "https://hooks.slack.com/services/..." },
     "say":    { "type": "command", "notify": ["say", "{title}. {message}"] }
   }
 }
 ```
 
-Then target one explicitly: `agent-notify ask "…" --channel phone`, or set it as
+Then target one explicitly: `agent-notify ask "..." --channel phone`, or set it as
 `default_channel` (handy on a headless box where the desktop channel can't run).
 
 ### Channel types
@@ -143,28 +143,28 @@ Then target one explicitly: `agent-notify ask "…" --channel phone`, or set it 
 |------|:------:|:----------------------:|-------|
 | `system`  | yes | yes | native desktop; the default |
 | `ntfy`    | yes | yes (round-trip) | phone push; you reply from the [ntfy](https://ntfy.sh) app and the agent reads it back |
-| `webhook` | yes | - | one-way POST; default body `{"text":"<title>: <message>"}` (Slack/Discord-compatible) |
+| `webhook` | yes | no | one-way POST; default body `{"text":"<title>: <message>"}` (Slack/Discord-compatible) |
 | `command` | yes | yes | run any program; placeholders `{message} {title} {default} {options}` |
 
 The **`ntfy`** channel is what makes "the user is away" work: the agent publishes
 your question to a topic, you get a push notification, you reply to the topic from
 the ntfy app, and the agent reads your reply back off the same topic. Self-host
-ntfy or use the public `ntfy.sh` - pick an unguessable topic name.
+ntfy or use the public `ntfy.sh`; pick an unguessable topic name.
 
-The **`command`** channel is the escape hatch for anything else - `terminal-notifier`,
+The **`command`** channel is the escape hatch for anything else: `terminal-notifier`,
 a Telegram CLI, text-to-speech, a webhook with a custom shape. For `ask`/`choose`
 the agent reads your program's **stdout**; for `confirm`, **exit 0 = approve**,
 nonzero = deny.
 
 > **No silent fallback.** If a channel can't do the verb you asked for (say, the
 > `system` channel on a machine with no desktop), it fails loudly with a typed
-> error naming the problem - it never quietly routes elsewhere. Choose the channel
+> error naming the problem. It never quietly routes elsewhere. Choose the channel
 > deliberately.
 
 ## Using it from an agent
 
 `agent-notify` ships a [`SKILL.md`](./SKILL.md), so agents that support skills
-(Claude Code, Codex, Cursor, OpenClaw, …) can load it and learn when to reach for
+(Claude Code, Codex, Cursor, OpenClaw, ...) can load it and learn when to reach for
 it. `./install.sh --skills` symlinks this repo into the skill directories it finds
 (`~/.claude/skills`, `~/.codex/skills`, `~/.cursor/skills`, `~/.openclaw/skills`,
 `~/.config/hermes/skills`). For any other agent, point it at the four verbs above
@@ -173,24 +173,25 @@ and the exit-code contract; that is the entire interface.
 ## How it works
 
 ```
-agent ── shell ──> agent-notify <verb> <message> [flags]
-                        │
-                        ├─ load ~/.config/agent-notify/config.json (or built-in system default)
-                        ├─ pick the channel (--channel, else default_channel)
-                        └─ channel delivers, and for ask/confirm/choose, blocks for the reply
-                                 │
-              system: osascript / notify-send / zenity / PowerShell  (this machine)
-              ntfy:   POST to topic, long-poll the topic for your reply  (your phone)
-              webhook:POST once                                          (Slack/Discord)
-              command:run your program                                   (anything)
-                                 │
-                        result ──> stdout (answer) + exit code  (+ optional --json)
+agent --> shell --> agent-notify <verb> <message> [flags]
+                       |
+                       |  load ~/.config/agent-notify/config.json (or built-in default)
+                       |  pick the channel (--channel, else default_channel)
+                       |  deliver; for ask/confirm/choose, block for the reply
+                       v
+             system : osascript / notify-send / zenity / PowerShell  (this machine)
+             ntfy   : POST to a topic, then poll it for your reply    (your phone)
+             webhook: POST once                                       (Slack/Discord)
+             command: run your program                                (anything)
+                       |
+                       v
+                    result: stdout (answer) + exit code  (+ optional --json)
 ```
 
 ## Security notes
 
-- `config.json` can hold an ntfy token or a webhook URL - it is git-ignored here;
-  keep it `chmod 600` and out of version control.
+- `config.json` can hold an ntfy token or a webhook URL, so it is git-ignored
+  here; keep it `chmod 600` and out of version control.
 - The `command` channel runs whatever **you** put in your config. Only put trusted
   commands there; the message/title text an agent passes is substituted as argv,
   not run through a shell.
@@ -204,8 +205,8 @@ agent ── shell ──> agent-notify <verb> <message> [flags]
 - macOS `choose` has no native countdown, so `--timeout` is enforced by killing
   the dialog rather than letting it self-dismiss.
 - Windows support (`notify`/`ask`/`confirm`) is best-effort via PowerShell; `choose`
-  is not implemented there - use `ask` or an `ntfy`/`command` channel.
+  is not implemented there; use `ask` or an `ntfy`/`command` channel.
 
 ## License
 
-MIT - see [LICENSE](./LICENSE).
+MIT. See [LICENSE](./LICENSE).

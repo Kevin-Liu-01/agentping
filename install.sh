@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh - put agent-notify on PATH, and optionally expose it as a skill to
+# install.sh: put agent-notify on PATH, and optionally expose it as a skill to
 # any AI agents installed on this machine.
 #
 #   ./install.sh            # symlink `agent-notify` into ~/.local/bin
@@ -21,7 +21,7 @@ ln -sf "$TOOL" "$BIN/agent-notify"
 echo "linked $BIN/agent-notify -> $TOOL"
 case ":$PATH:" in
   *":$BIN:"*) ;;
-  *) echo "note: $BIN is not on your PATH - add it in your shell profile to call 'agent-notify' directly" ;;
+  *) echo "note: $BIN is not on your PATH; add it in your shell profile to call 'agent-notify' directly" ;;
 esac
 
 if [ "$WITH_SKILLS" = 1 ]; then

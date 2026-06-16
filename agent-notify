@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""agent-notify - reach a human out-of-band from any AI agent.
+"""agent-notify: reach a human out-of-band from any AI agent.
 
-An agent that is blocked - waiting on a decision, an approval, or an answer it
-cannot infer - can call this tool to ping the human through their own
+An agent that is blocked (waiting on a decision, an approval, or an answer it
+cannot infer) can call this tool to ping the human through their own
 notification settings and (when asked) block for the reply. It works from any
 agent that can run a shell command: Cursor, Claude Code, Codex, OpenClaw,
 Hermes, and so on.
@@ -10,7 +10,7 @@ Hermes, and so on.
 Delivery goes through a "channel". The default channel is `system`: a native
 desktop notification or dialog (osascript on macOS, notify-send/zenity on
 Linux, PowerShell on Windows). The user can configure extra channels in
-~/.config/agent-notify/config.json - `ntfy` for phone push with a reply,
+~/.config/agent-notify/config.json: `ntfy` for phone push with a reply,
 `webhook` for Slack/Discord, or `command` to run any program they like. That
 config file is the "notification linkup" layer: the agent always calls the
 same verbs, the user decides where the ping lands.
@@ -99,7 +99,7 @@ class Result:
 
 class Unsupported(Exception):
     """A channel cannot service the requested verb. We fail loud, never silently
-    fall back to a different channel - one ping, one destination."""
+    fall back to a different channel. One ping, one destination."""
 
 
 # --------------------------------------------------------------------------- #
@@ -260,7 +260,7 @@ def _linux_choose(req: Ask, channel: str) -> Result:
 
 
 # --------------------------------------------------------------------------- #
-# Windows system backend (PowerShell / WScript.Shell) - best effort
+# Windows system backend (PowerShell / WScript.Shell), best effort
 # --------------------------------------------------------------------------- #
 
 def _powershell(script: str, timeout: Optional[float] = None) -> subprocess.CompletedProcess:
