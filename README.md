@@ -27,20 +27,6 @@ Hermes**, or your own scripts.
 agentping confirm "Run the destructive migration on prod?" && ./migrate.sh
 ```
 
-## Demo
-
-<p align="center">
-  <video src="assets/demo-portrait-4x5.mp4" width="360" controls muted playsinline></video>
-</p>
-
-<p align="center"><sub>Portrait 4:5 (X / mobile)</sub></p>
-
-<p align="center">
-  <video src="assets/demo-wide-5x4.mp4" width="480" controls muted playsinline></video>
-</p>
-
-<p align="center"><sub>Wide 5:4</sub></p>
-
 ---
 
 ## Why
